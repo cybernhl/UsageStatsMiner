@@ -1,0 +1,24 @@
+CREATE TABLE UsageEvent (
+    timestamp INTEGER NOT NULL,
+    packageName TEXT NOT NULL,
+    appName TEXT,
+    className TEXT,
+    eventType INTEGER NOT NULL
+);
+
+insertUsageEvent:
+INSERT INTO UsageEvent(timestamp, packageName, appName, className, eventType)
+VALUES(?, ?, ?, ?, ?);
+
+removeAllUsageEvents:
+DELETE FROM UsageEvent;
+
+selectAllUsageEvents:
+SELECT UsageEvent.*
+FROM UsageEvent;
+
+selectLatestUsageEvent:
+SELECT UsageEvent.*
+FROM UsageEvent
+ORDER BY timestamp DESC
+LIMIT 1;
