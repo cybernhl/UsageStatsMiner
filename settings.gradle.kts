@@ -14,5 +14,8 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "UsageStatsMiner"
-include(":androidApp")
+//share
 include(":shared")
+//server
+//client
+include(":androidApp")
