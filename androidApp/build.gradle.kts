@@ -56,4 +56,5 @@ dependencies {
     implementation("androidx.navigation:navigation-ui-ktx:2.5.2")
 
     implementation("com.blankj:utilcodex:1.31.0")
+    implementation("com.github.liangjingkanji:BRV:1.4.1")
 }

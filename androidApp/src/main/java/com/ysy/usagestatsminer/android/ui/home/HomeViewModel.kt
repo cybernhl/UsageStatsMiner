@@ -5,23 +5,20 @@ import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
 import android.content.Context
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.blankj.utilcode.util.AppUtils
+import com.blankj.utilcode.util.TimeUtils
 import com.ysy.usagestatsminer.shared.UsageStatsSDK
 import com.ysy.usagestatsminer.shared.cache.DatabaseDriverFactory
 import com.ysy.usagestatsminer.shared.entity.UsageEvent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import java.util.Date
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val _text = MutableLiveData<String>().apply {
-        value = "This is home Fragment"
-    }
-    val text: LiveData<String> = _text
+    val usageEventsLD = MutableLiveData<List<String>>()
 
     private val usageStatsManager by lazy {
         application.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
@@ -29,11 +26,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val usageStatsSDK by lazy { UsageStatsSDK(DatabaseDriverFactory(application)) }
     private val appInfoCache = mutableMapOf<String, String>()
 
-    suspend fun queryUsageEventsFromSystem(
+    fun queryUsageEventsFromSystem(
         beginTime: Long,
         endTime: Long,
         filterPkgs: Set<String> = emptySet()
-    ): List<UsageEvent> = withContext(Dispatchers.IO) {
+    ) = viewModelScope.launch(Dispatchers.IO) {
         val result = mutableListOf<UsageEvent>()
         val events = usageStatsManager.queryEvents(beginTime, endTime)
         while (events.hasNextEvent()) {
@@ -53,7 +50,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 )
             }
         }
-        result.asReversed() // order desc by time
+        // order desc by time
+        usageEventsLD.postValue(result.asReversed().map {
+            "${it.timestamp.toDateTime()} [${it.appName}] ${
+                it.className?.replaceFirst(it.packageName, "")
+            } -> ${it.eventType.toDesc()}"
+        })
     }
 
     private fun saveUsageEventsToUserDB(events: List<UsageEvent>) {
@@ -67,6 +69,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             usageStatsSDK.postUsageEvents(events, 50)
         }
     }
+
+    // timestamp -> dateTimeStr
+    private fun Long.toDateTime() = if (this == 0L) "--" else TimeUtils.date2String(Date(this))
 
     // packageName -> appName
     private fun String?.toAppName(): String {
