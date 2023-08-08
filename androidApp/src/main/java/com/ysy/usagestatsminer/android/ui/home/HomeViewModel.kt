@@ -4,6 +4,8 @@ import android.app.Application
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
 import android.content.Context
+import android.util.Log
+import android.util.SparseBooleanArray
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
@@ -18,7 +20,55 @@ import java.util.Date
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
-    val usageEventsLD = MutableLiveData<List<String>>()
+    val usageEventsLD = MutableLiveData<List<HomeListItem>>()
+    val eventDescs = arrayOf(
+        "ACTIVITY_RESUMED",
+        "ACTIVITY_PAUSED",
+        "END_OF_DAY",
+        "CONTINUE_PREVIOUS_DAY",
+        "CONFIGURATION_CHANGE",
+        "SYSTEM_INTERACTION",
+        "USER_INTERACTION",
+        "SHORTCUT_INVOCATION",
+        "CHOOSER_ACTION",
+        "NOTIFICATION_SEEN",
+        "STANDBY_BUCKET_CHANGED",
+        "NOTIFICATION_INTERRUPTION",
+        "SLICE_PINNED_PRIV",
+        "SLICE_PINNED",
+        "SCREEN_INTERACTIVE",
+        "SCREEN_NON_INTERACTIVE",
+        "KEYGUARD_SHOWN",
+        "KEYGUARD_HIDDEN",
+        "FOREGROUND_SERVICE_START",
+        "FOREGROUND_SERVICE_STOP",
+        "CONTINUING_FOREGROUND_SERVICE",
+        "ROLLOVER_FOREGROUND_SERVICE",
+        "ACTIVITY_STOPPED",
+        "ACTIVITY_DESTROYED",
+        "FLUSH_TO_DISK",
+        "DEVICE_SHUTDOWN",
+        "DEVICE_STARTUP",
+        "USER_UNLOCKED",
+        "USER_STOPPED",
+        "LOCUS_ID_SET",
+        "APP_COMPONENT_USED"
+    )
+    val filterEventTypes = mutableMapOf<Int, Boolean>()
+
+    var appNames: List<String> = emptyList()
+    val appPkgs by lazy {
+        AppUtils.getAppsInfo()
+            .filterNot { it.isSystem }
+            .sortedBy { it.name }
+            .map { it.packageName }
+            .toMutableList().apply {
+                add(0, "android")
+            }.also {
+                appNames = it.map { s -> s.toAppName() }
+            }
+    }
+    val filterPkgs = mutableMapOf<String, Boolean>()
 
     private val usageStatsManager by lazy {
         application.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
@@ -28,15 +78,18 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun queryUsageEventsFromSystem(
         beginTime: Long,
-        endTime: Long,
-        filterPkgs: Set<String> = emptySet()
+        endTime: Long
     ) = viewModelScope.launch(Dispatchers.IO) {
+        if (filterPkgs.isEmpty()) {
+            appPkgs.forEach { filterPkgs[it] = true }
+        }
         val result = mutableListOf<UsageEvent>()
         val events = usageStatsManager.queryEvents(beginTime, endTime)
         while (events.hasNextEvent()) {
             val event = UsageEvents.Event()
             events.getNextEvent(event)
-            if (filterPkgs.isEmpty() || filterPkgs.contains(event.packageName)) {
+            if (!filterEventTypes.getOrDefault(event.eventType - 1, true)) continue
+            if (filterPkgs.getOrDefault(event.packageName, false)) {
                 result.add(
                     UsageEvent(
                         event.timeStamp,
@@ -52,9 +105,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
         // order desc by time
         usageEventsLD.postValue(result.asReversed().map {
-            "${it.timestamp.toDateTime()} [${it.appName}] ${
-                it.className?.replaceFirst(it.packageName, "")
-            } -> ${it.eventType.toDesc()}"
+            HomeListItem(
+                pkgName = it.packageName,
+                text = "${it.timestamp.toDateTime()} [${it.appName}] ${it.packageName}/${
+                    it.className?.replaceFirst(it.packageName, "")
+                } -> ${it.eventType.toDesc()}"
+            )
         })
     }
 
@@ -74,7 +130,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private fun Long.toDateTime() = if (this == 0L) "--" else TimeUtils.date2String(Date(this))
 
     // packageName -> appName
-    private fun String?.toAppName(): String {
+    fun String?.toAppName(): String {
         val key = this ?: ""
         return appInfoCache.getOrDefault(key, "").ifEmpty {
             AppUtils.getAppName(key).also { appInfoCache[key] = it }
@@ -82,38 +138,5 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // eventType -> eventDesc
-    private fun Int.toDesc() = when (this) {
-        UsageEvents.Event.ACTIVITY_RESUMED -> "ACTIVITY_RESUMED"
-        UsageEvents.Event.ACTIVITY_PAUSED -> "ACTIVITY_PAUSED"
-        3 -> "END_OF_DAY"
-        4 -> "CONTINUE_PREVIOUS_DAY"
-        UsageEvents.Event.CONFIGURATION_CHANGE -> "CONFIGURATION_CHANGE"
-        6 -> "SYSTEM_INTERACTION"
-        UsageEvents.Event.USER_INTERACTION -> "USER_INTERACTION"
-        UsageEvents.Event.SHORTCUT_INVOCATION -> "SHORTCUT_INVOCATION"
-        9 -> "CHOOSER_ACTION"
-        10 -> "NOTIFICATION_SEEN"
-        UsageEvents.Event.STANDBY_BUCKET_CHANGED -> "STANDBY_BUCKET_CHANGED"
-        12 -> "NOTIFICATION_INTERRUPTION"
-        13 -> "SLICE_PINNED_PRIV"
-        14 -> "SLICE_PINNED"
-        UsageEvents.Event.SCREEN_INTERACTIVE -> "SCREEN_INTERACTIVE"
-        UsageEvents.Event.SCREEN_NON_INTERACTIVE -> "SCREEN_NON_INTERACTIVE"
-        UsageEvents.Event.KEYGUARD_SHOWN -> "KEYGUARD_SHOWN"
-        UsageEvents.Event.KEYGUARD_HIDDEN -> "KEYGUARD_HIDDEN"
-        UsageEvents.Event.FOREGROUND_SERVICE_START -> "FOREGROUND_SERVICE_START"
-        UsageEvents.Event.FOREGROUND_SERVICE_STOP -> "FOREGROUND_SERVICE_STOP"
-        21 -> "CONTINUING_FOREGROUND_SERVICE"
-        22 -> "ROLLOVER_FOREGROUND_SERVICE"
-        UsageEvents.Event.ACTIVITY_STOPPED -> "ACTIVITY_STOPPED"
-        24 -> "ACTIVITY_DESTROYED"
-        25 -> "FLUSH_TO_DISK"
-        UsageEvents.Event.DEVICE_SHUTDOWN -> "DEVICE_SHUTDOWN"
-        UsageEvents.Event.DEVICE_STARTUP -> "DEVICE_STARTUP"
-        28 -> "USER_UNLOCKED"
-        29 -> "USER_STOPPED"
-        30 -> "LOCUS_ID_SET"
-        31 -> "APP_COMPONENT_USED"
-        else -> "UNKNOWN"
-    }
+    private fun Int.toDesc() = if (this in 1..31) eventDescs[this - 1] else "UNKNOWN"
 }
