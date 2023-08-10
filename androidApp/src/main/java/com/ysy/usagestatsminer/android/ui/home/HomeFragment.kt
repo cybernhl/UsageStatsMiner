@@ -1,7 +1,5 @@
 package com.ysy.usagestatsminer.android.ui.home
 
-import android.content.DialogInterface
-import android.content.DialogInterface.OnMultiChoiceClickListener
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -13,21 +11,19 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
-import androidx.core.content.ContextCompat
 import androidx.core.view.MenuProvider
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.DividerItemDecoration
-import androidx.recyclerview.widget.RecyclerView.HORIZONTAL
-import androidx.recyclerview.widget.RecyclerView.ItemDecoration
 import com.blankj.utilcode.util.AppUtils
+import com.blankj.utilcode.util.ToastUtils
 import com.drake.brv.utils.linear
 import com.drake.brv.utils.models
 import com.drake.brv.utils.setup
 import com.ysy.usagestatsminer.android.R
 import com.ysy.usagestatsminer.android.databinding.FragmentHomeBinding
+import com.ysy.usagestatsminer.android.ui.model.HomeListItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -68,6 +64,11 @@ class HomeFragment : Fragment() {
         viewModel.usageEventsLD.observe(viewLifecycleOwner) {
             binding.rvUsageEvents.models = it
         }
+        updateData()
+
+        binding.fabUpload.setOnClickListener {
+            ToastUtils.showShort("TODO")
+        }
 
         requireActivity().addMenuProvider(object : MenuProvider {
             override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
@@ -83,7 +84,6 @@ class HomeFragment : Fragment() {
             }
         }, viewLifecycleOwner, Lifecycle.State.RESUMED)
 
-        updateData()
         return root
     }
 

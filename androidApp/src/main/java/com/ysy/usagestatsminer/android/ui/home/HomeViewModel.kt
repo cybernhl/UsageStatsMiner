@@ -4,13 +4,12 @@ import android.app.Application
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
 import android.content.Context
-import android.util.Log
-import android.util.SparseBooleanArray
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.blankj.utilcode.util.AppUtils
 import com.blankj.utilcode.util.TimeUtils
+import com.ysy.usagestatsminer.android.ui.model.HomeListItem
 import com.ysy.usagestatsminer.shared.UsageStatsSDK
 import com.ysy.usagestatsminer.shared.cache.DatabaseDriverFactory
 import com.ysy.usagestatsminer.shared.entity.UsageEvent
